@@ -1,6 +1,8 @@
 package core
 
-import "fmt"
+import (
+	"fmt"
+)
 
 /*************************************************
  * 容器功能
@@ -44,6 +46,11 @@ func InitTomlData(datas ...[]byte) {
 	// 1. 回调钩子
 	ExecHook(BeforeInit, _configContext, _managedContext)
 
+	// 初始化日志. 应该比其他组件都要早!
+	if err := InitLogger(); err != nil {
+		panic(fmt.Errorf("init logger error: %v", err))
+	}
+
 	// 2. 初始托管(错误中止)
 	if err := _managedContext.Init(_configContext); err != nil {
 		panic(fmt.Errorf("init managed context error: %v", err))
@@ -80,6 +87,9 @@ func ReloadTomlData(reloadPolicy func(base string, config *ManagedConfig, newVal
 }
 
 func Exit(hints ...func(base string, config *ManagedConfig, err error)) {
+
+	// 刷新日志. 应该在其他组件最后!
+	defer ExitLogger()
 
 	// 1. 回调钩子
 	ExecHook(BeforeReload, _configContext, _managedContext)
