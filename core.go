@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/hezof/log"
 )
 
 /*************************************************
@@ -43,13 +44,13 @@ func InitTomlData(datas ...[]byte) {
 		panic(fmt.Errorf("init config context error: %v", err))
 	}
 
-	// 1. 回调钩子
-	ExecHook(BeforeInit, _configContext, _managedContext)
-
-	// 初始化日志. 应该比其他组件都要早!
+	// 初始化日志. 需早于其他组件!
 	if err := InitLogger(); err != nil {
 		panic(fmt.Errorf("init logger error: %v", err))
 	}
+
+	// 1. 回调钩子
+	ExecHook(BeforeInit, _configContext, _managedContext)
 
 	// 2. 初始托管(错误中止)
 	if err := _managedContext.Init(_configContext); err != nil {
@@ -88,8 +89,12 @@ func ReloadTomlData(reloadPolicy func(base string, config *ManagedConfig, newVal
 
 func Exit(hints ...func(base string, config *ManagedConfig, err error)) {
 
-	// 刷新日志. 应该在其他组件最后!
-	defer ExitLogger()
+	/*
+		注意: 因为Exit通常在defer中执行, 因此不建议再在Exit添加defer流程!
+	*/
+
+	// 退出开始执行flush logger(避免丢失关键消息)
+	log.Flush()
 
 	// 1. 回调钩子
 	ExecHook(BeforeReload, _configContext, _managedContext)
@@ -99,4 +104,7 @@ func Exit(hints ...func(base string, config *ManagedConfig, err error)) {
 
 	// 最后回调钩子
 	ExecHook(AfterReload, _configContext, _managedContext)
+
+	// 退出最后执行flush logger.
+	log.Flush()
 }
